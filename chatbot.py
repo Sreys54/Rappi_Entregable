@@ -1,5 +1,7 @@
 from typing import Generator
 
+# google-genai es el SDK oficial nuevo (>= 1.0.0).
+# No confundir con el paquete deprecado "google-generativeai".
 from google import genai
 from google.genai import types
 
@@ -15,6 +17,8 @@ Guidelines:
 - Always respond in the same language the user writes in (Spanish or English)
 """
 
+# gemini-2.5-flash: capa gratuita con cuota disponible.
+# gemini-2.0-flash tenía limit=0 en la capa gratuita al momento del desarrollo.
 MODEL = "gemini-2.5-flash"
 
 
@@ -27,22 +31,9 @@ def stream_response(
     messages: list[dict],
     data_summary: str,
 ) -> Generator[str, None, None]:
-    """
-    Streams a Gemini response given the chat history and data context.
-
-    The data summary is seeded as the first exchange in the API history so the
-    model always has full context without re-sending it on every turn.
-
-    Args:
-        client: Initialized Gemini Client.
-        messages: List of {"role": "user" | "assistant", "content": str}.
-        data_summary: Pre-computed text summary of the dataset.
-
-    Yields:
-        Text chunks as they arrive from the Gemini streaming API.
-    """
-    # Seed the data context as the very first exchange so it is always
-    # available to the model across the entire conversation.
+    # Sembramos el resumen como el primer intercambio del historial (user→model)
+    # en lugar de inyectarlo en cada mensaje del usuario. Así el modelo siempre
+    # tiene el contexto disponible sin reenviar ~3 KB en cada turno.
     history = [
         types.Content(
             role="user",
@@ -57,7 +48,8 @@ def stream_response(
         ),
     ]
 
-    # Append all previous turns except the current user message
+    # Agregamos todos los turnos previos EXCEPTO el último mensaje del usuario,
+    # que se envía por separado en send_message_stream como el turno actual.
     for msg in messages[:-1]:
         history.append(
             types.Content(
@@ -72,6 +64,8 @@ def stream_response(
         history=history,
     )
 
+    # El generador cede fragmentos de texto a medida que llegan;
+    # Streamlit los renderiza en tiempo real con st.write_stream().
     for chunk in chat.send_message_stream(messages[-1]["content"]):
         if chunk.text:
             yield chunk.text

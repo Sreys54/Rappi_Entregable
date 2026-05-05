@@ -28,6 +28,8 @@ ORANGE_PALE = "rgba(255,68,31,0.10)"
 DARK        = "#1A1A2E"
 GRID_COLOR  = "#F0F0F0"
 
+# Codificamos el logo en base64 para poder incrustarlo como data URI dentro
+# de st.markdown(). st.image() no funciona dentro de bloques HTML personalizados.
 with open(LOGO_PATH, "rb") as _f:
     _LOGO_B64 = base64.b64encode(_f.read()).decode()
 
@@ -209,6 +211,10 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ── DATA LOAD ─────────────────────────────────────────────────────────────────
+# df_all conserva el dataset completo sin filtros. Se usa para:
+#   1) el resumen del chatbot (necesita estadísticas globales reales)
+#   2) los límites del selector de fechas en el sidebar.
+# df (más abajo) es la vista filtrada que alimenta las gráficas.
 df_all = load_all_data()
 
 # ── SIDEBAR ───────────────────────────────────────────────────────────────────
@@ -289,6 +295,9 @@ if df.empty:
     st.warning("No hay datos para los filtros seleccionados.")
     st.stop()
 
+# Remuestreamos a la granularidad elegida por el usuario (10 s, 1 min … 1 h).
+# A granularidades altas (1 h) el gráfico de serie de tiempo es más legible;
+# a granularidades bajas (10 s) se ve cada lectura individual.
 df_res = (
     df.set_index("timestamp")
     .resample(granularity)["stores"]
@@ -382,6 +391,8 @@ with tab_dash:
         fill="tozeroy", fillcolor=ORANGE_PALE,
     ))
     if show_rolling and len(df_res) > 10:
+        # Ventana adaptativa: escala con el número de puntos para que la media
+        # móvil siempre suavice ~2.5% del rango visible sin importar la granularidad.
         window = max(12, len(df_res) // 40)
         fig_ts.add_trace(go.Scatter(
             x=df_res["time"],
@@ -566,6 +577,8 @@ with tab_dash:
                      "Friday","Saturday","Sunday"]
         dow_avg = (df.groupby("day_name")["stores"].mean()
                    .reindex(dow_order).fillna(0))
+        # Calculamos dinámicamente qué días no tienen datos en el rango filtrado,
+        # en vez de hardcodear "Saturday", para que funcione con cualquier subconjunto.
         no_data_days = {"Saturday"} - set(df["day_name"].unique())
         bar_colors = [
             "#CCCCCC" if d in no_data_days else ORANGE
@@ -603,6 +616,8 @@ with tab_chat:
     if "messages" not in st.session_state:
         st.session_state.messages = []
     if "data_summary" not in st.session_state:
+        # Usamos df_all (sin filtros) para que el chatbot siempre tenga
+        # estadísticas globales, independientemente del filtro de fechas activo.
         st.session_state.data_summary = compute_summary(df_all)
 
     # Chat header card
