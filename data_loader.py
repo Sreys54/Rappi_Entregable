@@ -9,7 +9,7 @@ import streamlit as st
 DATA_DIR = Path(__file__).parent
 
 
-@st.cache_data(show_spinner="Cargando datos historicos de disponibilidad...")
+@st.cache_data(show_spinner="Cargando datos...")
 def load_all_data() -> pd.DataFrame:
     """
     Loads all 100 AVAILABILITY-data CSV files dynamically.
