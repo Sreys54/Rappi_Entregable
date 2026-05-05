@@ -219,10 +219,22 @@ with st.sidebar:
 
     st.markdown("### Configuracion")
     try:
-        default_key = st.secrets.get("GEMINI_API_KEY", "")
+        _secret_key = st.secrets.get("GEMINI_API_KEY", "")
     except Exception:
-        default_key = ""
-    api_key = st.text_input("Gemini API Key", value=default_key, type="password")
+        _secret_key = ""
+
+    if _secret_key:
+        api_key = _secret_key
+        st.markdown(
+            '<span style="'
+            f'background:{ORANGE};color:white;font-size:0.7rem;font-weight:700;'
+            'padding:0.2rem 0.7rem;border-radius:20px;letter-spacing:0.06em;'
+            '">IA Conectada</span>',
+            unsafe_allow_html=True,
+        )
+    else:
+        api_key = st.text_input("Gemini API Key", value="", type="password")
+        st.caption("Agrega tu clave en .streamlit/secrets.toml")
 
     st.divider()
     st.markdown("### Filtros")
